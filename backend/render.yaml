@@ -11,3 +11,4 @@ services:
         value: sqlite+aiosqlite:///./db/atmosense.db
       - key: ENV
         value: production
+        buildCommand: pip install -r requirements.txt && python ml/train_classifier.py && python ml/train_anomaly.py && python -m ml.train_forecast
