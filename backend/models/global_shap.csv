@@ -1,0 +1,6 @@
+feature,mean_shap
+aqi_value,2.612458
+pm25_aqi_value,0.7668452
+ozone_aqi_value,0.16827258
+co_aqi_value,0.066635065
+no2_aqi_value,0.044819497
