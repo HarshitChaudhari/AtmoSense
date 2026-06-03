@@ -15,41 +15,6 @@ logging.basicConfig(level=logging.INFO)
 MODEL_DIR = os.getenv("MODEL_DIR", "./models")
 
 
-def forecast_with_moving_average(city_df: pd.DataFrame, days: int = 7) -> pd.DataFrame:
-    """Simple but effective exponential weighted moving average forecast."""
-    series = city_df[["timestamp", "aqi"]].dropna().sort_values("timestamp")
-    series["timestamp"] = pd.to_datetime(series["timestamp"])
-    series = series.set_index("timestamp").resample("6h").mean().ffill()
-
-    alpha = 0.3
-    last_values = series["aqi"].ewm(alpha=alpha, adjust=False).mean()
-    last_val = float(last_values.iloc[-1])
-    std = float(series["aqi"].std())
-
-    future_index = pd.date_range(
-        start=series.index[-1] + pd.Timedelta(hours=6),
-        periods=days * 4,
-        freq="6h"
-    )
-
-    predicted = []
-    val = last_val
-    for i in range(len(future_index)):
-        noise = np.random.normal(0, std * 0.05)
-        val = val * (1 - alpha) + last_val * alpha + noise
-        val = max(0, val)
-        predicted.append(val)
-
-    result = pd.DataFrame({
-        "datetime": future_index,
-        "predicted_aqi": np.round(predicted, 1),
-        "lower_bound": np.round(np.array(predicted) - std * 0.5, 1),
-        "upper_bound": np.round(np.array(predicted) + std * 0.5, 1),
-    })
-    result["lower_bound"] = result["lower_bound"].clip(lower=0)
-    return result
-
-
 def train_all_forecasters():
     logger.info("Generating synthetic time-series data for forecasting...")
     df = generate_synthetic_history(days=365)
@@ -65,7 +30,7 @@ def train_all_forecasters():
 
         series = city_df[["timestamp", "aqi"]].dropna().sort_values("timestamp")
         series["timestamp"] = pd.to_datetime(series["timestamp"])
-        series = series.set_index("timestamp").resample("6h").mean().fillna(method="ffill")
+        series = series.set_index("timestamp").resample("6h").mean().ffill()
 
         city_stats[city] = {
             "mean": float(series["aqi"].mean()),
@@ -75,8 +40,10 @@ def train_all_forecasters():
         }
 
     joblib.dump(city_stats, f"{MODEL_DIR}/forecasters/city_stats.pkl")
-    joblib.dump({c["city"]: c["city"].replace(" ", "_") for c in TRACKED_CITIES},
-                f"{MODEL_DIR}/forecasters/city_index.pkl")
+    joblib.dump(
+        {c["city"]: c["city"].replace(" ", "_") for c in TRACKED_CITIES},
+        f"{MODEL_DIR}/forecasters/city_index.pkl"
+    )
 
     logger.info(f"Forecast models saved for {len(city_stats)} cities.")
     return city_stats
