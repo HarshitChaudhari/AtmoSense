@@ -19,7 +19,7 @@ def forecast_with_moving_average(city_df: pd.DataFrame, days: int = 7) -> pd.Dat
     """Simple but effective exponential weighted moving average forecast."""
     series = city_df[["timestamp", "aqi"]].dropna().sort_values("timestamp")
     series["timestamp"] = pd.to_datetime(series["timestamp"])
-    series = series.set_index("timestamp").resample("6h").mean().fillna(method="ffill")
+    series = series.set_index("timestamp").resample("6h").mean().ffill()
 
     alpha = 0.3
     last_values = series["aqi"].ewm(alpha=alpha, adjust=False).mean()
