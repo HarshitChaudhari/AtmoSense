@@ -2,7 +2,7 @@ services:
   - type: web
     name: atmosense-api
     runtime: python
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt && python ml/train_classifier.py && python ml/train_anomaly.py && python -m ml.train_forecast && python seed_db.py
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: MODEL_DIR
@@ -11,4 +11,3 @@ services:
         value: sqlite+aiosqlite:///./db/atmosense.db
       - key: ENV
         value: production
-        buildCommand: pip install -r requirements.txt && python ml/train_classifier.py && python ml/train_anomaly.py && python -m ml.train_forecast && python seed_db.py
