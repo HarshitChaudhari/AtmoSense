@@ -10,7 +10,6 @@ backend/models/*.pkl
 backend/models/forecasters/
 backend/db/*.db
 backend/.env
-backend/seed_db.py
 
 # Node
 frontend/node_modules/
