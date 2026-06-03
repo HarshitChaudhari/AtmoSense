@@ -26,34 +26,31 @@ async def lifespan(app: FastAPI):
     logger.info("Database initialized.")
 
     # Auto-seed if DB is empty
-    from db.database import AsyncSessionLocal, CityReading
-    from sqlalchemy import text
-    async with AsyncSessionLocal() as session:
-        result = await session.execute(text("SELECT COUNT(*) FROM city_readings"))
-        count = result.scalar()
-        if count == 0:
-            logger.info("Empty DB detected — seeding data...")
-            from data.ingestion import generate_synthetic_history, TRACKED_CITIES
-            from datetime import datetime
-            import random
-            df = generate_synthetic_history(days=30)
-            latest = df.sort_values('timestamp').groupby('city').last().reset_index()
-            for _, row in latest.iterrows():
-                session.add(CityReading(
-                    city=row['city'], country=row['country'],
-                    lat=row['lat'], lon=row['lon'],
-                    timestamp=row['timestamp'],
-                    pm25=row.get('pm25'), pm10=row.get('pm10'),
-                    no2=row.get('no2'), o3=row.get('o3'),
-                    co=row.get('co'), so2=row.get('so2'),
-                    aqi=row.get('aqi'), aqi_category=row.get('aqi_category'),
-                    temperature=row.get('temperature'),
-                    humidity=row.get('humidity'), wind_speed=row.get('wind_speed'),
-                ))
-            await session.commit()
-            logger.info("Auto-seed complete.")
-    yield
-    logger.info("AtmoSense API shutting down.")
+    if count == 0:
+        logger.info("Empty DB detected — seeding full history...")
+        from data.ingestion import generate_synthetic_history
+        df = generate_synthetic_history(days=30)
+        batch = []
+        for _, row in df.iterrows():
+            batch.append(CityReading(
+                city=row['city'], country=row['country'],
+                lat=row['lat'], lon=row['lon'],
+                timestamp=row['timestamp'],
+                pm25=row.get('pm25'), pm10=row.get('pm10'),
+                no2=row.get('no2'), o3=row.get('o3'),
+                co=row.get('co'), so2=row.get('so2'),
+                aqi=row.get('aqi'), aqi_category=row.get('aqi_category'),
+                temperature=row.get('temperature'),
+                humidity=row.get('humidity'), wind_speed=row.get('wind_speed'),
+            ))
+            if len(batch) >= 500:
+                session.add_all(batch)
+                await session.flush()
+                batch = []
+        if batch:
+            session.add_all(batch)
+        await session.commit()
+        logger.info("Auto-seed complete — 30 days of history loaded.")
 
 
 app = FastAPI(
